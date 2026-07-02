@@ -19,19 +19,16 @@ jobs:
     - name: Setup Modern Node.js Runtime
       uses: actions/setup-node@v4
       with:
-        node-version: 24 # Modernized to Node 24 to completely remove deprecation notices
+        node-version: 24
 
     - name: Install Project Node Dependencies
-      run: npm install # Swapped from npm ci to support repositories missing a lockfile cleanly
+      run: npm install
 
-    - name: Install DuckDB CLI Package
-      run: |
-        wget -q "https://github.com"
-        unzip -q duckdb_cli-linux-amd64.zip
-        sudo mv duckdb /usr/local/bin/
-        rm -f duckdb_cli-linux-amd64.zip
-
-
+    # Replaced the breaking wget step with a robust setup action
+    - name: Setup DuckDB CLI
+      uses: duckdb/setup-duckdb@v1
+      with:
+        version: 'v1.1.3'
 
     - name: Fetch Fresh Indian Food Data Stream via DuckDB
       run: |
