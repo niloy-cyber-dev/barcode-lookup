@@ -1,0 +1,12 @@
+{
+  "name": "indian-grocery-database-sync",
+  "version": "1.0.0",
+  "description": "Automated zero-cost API for Indian food product data",
+  "main": "build-split-db.js",
+  "scripts": {
+    "build": "node build-split-db.js"
+  },
+  "dependencies": {
+    "csv-parser": "^3.0.0"
+  }
+}
