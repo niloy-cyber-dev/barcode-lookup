@@ -1,17 +1,13 @@
 name: Weekly Open Food Facts Sync
-
 on:
   schedule:
     - cron: '0 0 * * 0' # Automated trigger: Every Sunday at 00:00 UTC
   workflow_dispatch: # Manual trigger: Allows clicking a button on GitHub to run anytime
-
 permissions:
   contents: write # Allows GitHub actions to push files back into your repository
-
 jobs:
   sync-data:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Repository Code
       uses: actions/checkout@v4
@@ -24,19 +20,20 @@ jobs:
     - name: Install Project Node Dependencies
       run: npm install
 
-    # Clean Linux native installation via the system package manager (No wget, No unzips)
-    - name: Install DuckDB via Ubuntu Package Manager
+    # DuckDB is not available via apt-get on Ubuntu runners.
+    # Use DuckDB's official install script instead.
+    - name: Install DuckDB CLI
       run: |
-        sudo apt-get update -y
-        sudo apt-get install -y duckdb
+        curl -fsSL https://install.duckdb.org | sh
+        echo "$HOME/.duckdb/cli/latest" >> "$GITHUB_PATH"
 
     - name: Fetch Fresh Indian Food Data Stream via DuckDB
       run: |
         duckdb -c "
         COPY (
-            SELECT 
-                code AS barcode, 
-                product_name, 
+            SELECT
+                code AS barcode,
+                product_name,
                 categories_en AS category,
                 ingredients_text AS ingredients,
                 image_url,
@@ -46,7 +43,7 @@ jobs:
                 carbohydrates_100g AS carbs,
                 proteins_100g AS protein,
                 sodium_100g AS sodium
-            FROM read_parquet('https://huggingface.co') 
+            FROM read_parquet('https://huggingface.co/datasets/openfoodfacts/product-database/resolve/main/food.parquet')
             WHERE countries_en ILIKE '%India%'
         ) TO 'indian_food_nutrition.csv' (HEADER, DELIMITER ',');
         "
@@ -60,8 +57,8 @@ jobs:
     - name: Deploy Changes back to GitHub Branch
       run: |
         git config --global user.name "github-actions[bot]"
-        git config --global user.email "41898282+github-actions[bot]@://github.com"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add public/
-        
+
         # Deploy files only if new or modified data changes are discovered
         git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 Automated Weekly Sync: Fresh Indian Grocery Data" && git push)
