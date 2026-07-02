@@ -24,9 +24,8 @@ jobs:
     - name: Install Project Node Dependencies
       run: npm install
 
-    # Replaced the breaking wget step with a robust setup action
     - name: Setup DuckDB CLI
-      uses: duckdb/setup-duckdb@v1
+      uses: opt-nc/setup-duckdb-action@v1.2.1
       with:
         version: 'v1.1.3'
 
