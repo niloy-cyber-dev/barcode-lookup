@@ -1,0 +1,77 @@
+name: Weekly Open Food Facts Sync
+
+on:
+  schedule:
+    # This runs the script automatically every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # This allows you to click a button on GitHub to run it manually anytime
+
+permissions:
+  contents: write # Gives GitHub permission to save the updated data files back into your repo
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Check out your code from the repository
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 2. Set up Node.js for our data-splitting script
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    # 3. Install your project's npm dependencies (csv-parser)
+    - name: Install Dependencies
+      run: npm ci
+
+    # 4. Install DuckDB onto the GitHub runner machine
+    - name: Install DuckDB
+      run: |
+        wget https://github.com
+        unzip duckdb_cli-linux-amd64.zip
+        sudo mv duckdb /usr/local/bin/
+
+    # 5. Execute the optimized cloud query to download the freshest Indian records
+    - name: Fetch Fresh Indian Food Data Stream via DuckDB
+      run: |
+        duckdb -c "
+        COPY (
+            SELECT 
+                code AS barcode, 
+                product_name, 
+                categories_en AS category,
+                ingredients_text AS ingredients,
+                image_url,
+                nutriscore_grade AS score,
+                energy_100g AS calories,
+                fat_100g AS fat,
+                carbohydrates_100g AS carbs,
+                proteins_100g AS protein,
+                sodium_100g AS sodium
+            FROM read_parquet('https://huggingface.co') 
+            WHERE countries_en ILIKE '%India%'
+        ) TO 'indian_food_nutrition.csv' (HEADER, DELIMITER ',');
+        "
+
+    # 6. Run your JavaScript code to parse the CSV and regenerate the split JSON chunks
+    - name: Split Data into JSON Chunks
+      run: node build-enriched-db.js
+
+    # 7. Clean up the large temporary CSV file so it doesn't waste repository space
+    - name: Clean up temporary CSV
+      run: rm indian_food_nutrition.csv
+
+    # 8. Commit and push the new json chunks back to GitHub Pages automatically
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@://github.com"
+        git add public/
+        
+        # Only commit if the dataset actually found new items
+        git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 Automated Weekly Sync: Fresh Indian Grocery Data" && git push)
