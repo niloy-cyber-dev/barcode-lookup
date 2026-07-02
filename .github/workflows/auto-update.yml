@@ -2,41 +2,35 @@ name: Weekly Open Food Facts Sync
 
 on:
   schedule:
-    # This runs the script automatically every Sunday at 00:00 UTC
-    - cron: '0 0 * * 0'
-  workflow_dispatch: # This allows you to click a button on GitHub to run it manually anytime
+    - cron: '0 0 * * 0' # Automated trigger: Every Sunday at 00:00 UTC
+  workflow_dispatch: # Manual trigger: Allows clicking a button on GitHub to run anytime
 
 permissions:
-  contents: write # Gives GitHub permission to save the updated data files back into your repo
+  contents: write # Allows GitHub actions to push files back into your repository
 
 jobs:
   sync-data:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Check out your code from the repository
-    - name: Checkout Code
+    - name: Checkout Repository Code
       uses: actions/checkout@v4
 
-    # 2. Set up Node.js for our data-splitting script
-    - name: Setup Node.js
+    - name: Setup Modern Node.js Runtime
       uses: actions/setup-node@v4
       with:
-        node-version: 20
-        cache: 'npm'
+        node-version: 24 # Modernized to Node 24 to completely remove deprecation notices
 
-    # 3. Install your project's npm dependencies (csv-parser)
-    - name: Install Dependencies
-      run: npm ci
+    - name: Install Project Node Dependencies
+      run: npm install # Swapped from npm ci to support repositories missing a lockfile cleanly
 
-    # 4. Install DuckDB onto the GitHub runner machine
-    - name: Install DuckDB
+    - name: Install DuckDB CLI Package
       run: |
         wget https://github.com
         unzip duckdb_cli-linux-amd64.zip
         sudo mv duckdb /usr/local/bin/
+        rm duckdb_cli-linux-amd64.zip
 
-    # 5. Execute the optimized cloud query to download the freshest Indian records
     - name: Fetch Fresh Indian Food Data Stream via DuckDB
       run: |
         duckdb -c "
@@ -58,20 +52,17 @@ jobs:
         ) TO 'indian_food_nutrition.csv' (HEADER, DELIMITER ',');
         "
 
-    # 6. Run your JavaScript code to parse the CSV and regenerate the split JSON chunks
-    - name: Split Data into JSON Chunks
-      run: node build-enriched-db.js
+    - name: Build Database JSON Collections
+      run: node build-split-db.js
 
-    # 7. Clean up the large temporary CSV file so it doesn't waste repository space
-    - name: Clean up temporary CSV
-      run: rm indian_food_nutrition.csv
+    - name: Clean Large Temp Files
+      run: rm -f indian_food_nutrition.csv
 
-    # 8. Commit and push the new json chunks back to GitHub Pages automatically
-    - name: Commit and Push Changes
+    - name: Deploy Changes back to GitHub Branch
       run: |
         git config --global user.name "github-actions[bot]"
-        git config --global user.email "41898282+github-actions[bot]@://github.com"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add public/
         
-        # Only commit if the dataset actually found new items
+        # Deploy files only if new or modified data changes are discovered
         git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 Automated Weekly Sync: Fresh Indian Grocery Data" && git push)
