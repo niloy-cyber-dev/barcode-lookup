@@ -26,11 +26,7 @@ jobs:
 
     - name: Install DuckDB CLI Package
       run: |
-        # Use the official, permanent latest release URL from DuckDB
-        wget https://github.com
-        unzip duckdb_cli-linux-amd64.zip
-        sudo mv duckdb /usr/local/bin/
-        rm duckdb_cli-linux-amd64.zip
+        wget -q 
 
 
     - name: Fetch Fresh Indian Food Data Stream via DuckDB
